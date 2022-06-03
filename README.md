@@ -1,4 +1,4 @@
-﻿# Idrac RedFish Powershell Module
+# Idrac RedFish Powershell Module
 Based on an initial work of Texas Roemer (DELL)
 
 Enhanced by Mickael Roy
