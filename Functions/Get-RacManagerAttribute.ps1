@@ -22,13 +22,11 @@
     Specifies the attribute that has to be changed.
 
 .EXAMPLE
-    Set-RacManagerAttribute -Ip_Idrac 10.2.160.84 -Credential $Cred -Attribute 'WebServer.1.ManualDNSEntry'
+    Get-RacManagerAttribute -Ip_Idrac 10.2.160.84 -Credential $Cred -Attribute 'WebServer.1.ManualDNSEntry'
 
-    This example created a priviledged account
+    This example grabs the value of the attrubute WebServer.1.ManualDNSEntry
 
 .LINK
-
-
 #>
 
 Function Get-RacManagerAttribute {

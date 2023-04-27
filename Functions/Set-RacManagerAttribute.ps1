@@ -28,7 +28,7 @@
 .EXAMPLE
     Set-RacManagerAttribute -Ip_Idrac 10.2.160.84 -Credential $Cred -Attribute 'WebServer.1.ManualDNSEntry' -Value "10.2.160.84,idrac-panutafla208.idrac.boursorama.fr"
 
-    This example created a priviledged account
+    This example set value "10.2.160.84,idrac-panutafla208.idrac.boursorama.fr" to the attribute WebServer.1.ManualDNSEntry
 
 .LINK
 
