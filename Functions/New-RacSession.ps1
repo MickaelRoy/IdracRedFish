@@ -13,10 +13,6 @@ Specifies the IpAddress of Remote system's Idrac.
 
 Specifies the credential for Idrac connection.
 
-.PARAMETER Type
-
-Specifies Content type for Invoke-Webrequest ("application/json" by default).
-
 .OUTPUTS
 System.Management.Automation.PSCustomObject
 
@@ -39,10 +35,7 @@ Function New-RacSession {
         [String] $Ip_Idrac,
 
         [Parameter(Mandatory=$true)]
-        [pscredential] $Credential,
-
-        [Parameter()]
-        [String] $Type = "application/json"
+        [pscredential] $Credential
     )
 
     If ( -not [ipaddress]::TryParse($Ip_Idrac,[ref][ipaddress]::Loopback) ) { Throw 'Bad IP address format' }
@@ -59,7 +52,7 @@ Function New-RacSession {
     Try {
 
         $SessionUrl = "https://$Ip_Idrac/redfish/v1/SessionService/Sessions/" 
-        $SessResponse = Invoke-WebRequest $SessionUrl -Method 'POST' -Headers $Headers -Body $UserDetails -ContentType $Type
+        $SessResponse = Invoke-WebRequest $SessionUrl -Method 'POST' -Headers $Headers -Body $UserDetails
 
     } Catch {
         
