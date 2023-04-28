@@ -73,7 +73,7 @@ Function Set-RacManagerAttribute {
     $GetUri = "https://$Ip_Idrac/redfish/v1/Managers/iDRAC.Embedded.1/Attributes"
     $WebRequestParameter.Uri = $GetUri
     Try {
-        $GetResult = Invoke-RestMethod @WebRequestParameter -UseBasicParsing
+        $GetResult = Invoke-RestMethod @WebRequestParameter
     } Catch {
         Throw $_
     }
