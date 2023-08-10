@@ -30,10 +30,16 @@
 
 #>
 Function Get-RacUser {
-    [CmdletBinding(DefaultParameterSetName='AutoExtend')]
+    [CmdletBinding(DefaultParameterSetName='Host')]
 	param(
-		[Parameter(Mandatory=$true, ParameterSetName = "Creds")]
-        [string]$Ip_Idrac,
+		[Parameter(ParameterSetName = "Creds")]
+        [Parameter(Mandatory=$true, ParameterSetName='Ip')]
+        [Alias("idrac_ip")]
+        [IpAddress]$Ip_Idrac,
+		[Parameter(ParameterSetName = "Creds")]
+        [Parameter(Mandatory=$true, ParameterSetName='Host')]
+        [Alias("Server")]
+        [string]$Hostname,
 
         [Parameter(Mandatory=$true, ParameterSetName = "Creds")]
         [pscredential]$Credential,
@@ -42,27 +48,43 @@ Function Get-RacUser {
         [PSCustomObject]$Session,
 
         [Parameter(Mandatory=$false)]
-        [string]$Name
+        [string]$Name,
+
+        [Switch]$NoProxy
 	)
 
-        Switch ($PsCmdlet.ParameterSetName) {
-            Creds {
-                $WebRequestParameter = @{
-                    Headers = @{"Accept"="application/json"}
-                    Credential = $Credential
-                    Method = 'Get'
-                    ContentType = 'application/json'
-                }
-            }
+    If ($null -ne $Hostname) {
+        $Ip_Idrac = [System.Net.Dns]::Resolve($Hostname).AddressList.IPAddressToString
+    }
 
-            Session {
-                $WebRequestParameter = @{
-                    Headers = $Session.Headers
-                    Method = 'Get'
-                }
-                $Ip_Idrac = $Session.IPAddress
+    Switch ($PsCmdlet.ParameterSetName) {
+        Creds {
+            $WebRequestParameter = @{
+                Headers = @{"Accept"="application/json"}
+                Credential = $Credential
+                Method = 'Get'
+                ContentType = 'application/json'
             }
         }
+
+        Session {
+            $WebRequestParameter = @{
+                Headers = $Session.Headers
+                Method = 'Get'
+            }
+            $Ip_Idrac = $Session.IPAddress
+        }
+    }
+
+    If (! $NoProxy) { Set-myProxyAsDefault -Uri "Https://$Ip_Idrac" | Out-null }
+    Else {
+        Write-Verbose "No proxy requested"
+        $Proxy = [System.Net.WebProxy]::new()
+        $WebSession = [Microsoft.PowerShell.Commands.WebRequestSession]::new()
+        $WebSession.Proxy = $Proxy
+        $WebRequestParameter.WebSession = $WebSession
+        If ($PSVersionTable.PSVersion.Major -gt 5) { $WebRequestParameter.SkipCertificateCheck = $true }
+    }
 
 # Built Users list
     $GetUri = "https://$Ip_Idrac/redfish/v1/Managers/iDRAC.Embedded.1/Accounts"
@@ -74,7 +96,7 @@ Function Get-RacUser {
     }
 
     If ([String]::IsNullOrEmpty($Name)) {
-        $Accounts = New-Object System.Collections.ArrayList
+        $Accounts = [System.Collections.ArrayList]::new()
 
         $GetResult.Members.'@odata.id' | ForEach-Object {
             $GetUri2 = "https://$Ip_Idrac$_"

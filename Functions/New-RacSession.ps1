@@ -29,37 +29,66 @@ System.Management.Automation.PSCustomObject
     Expired sessions are kept stuck in idrac.
 #>
 Function New-RacSession {
-    [CmdletBinding()]
-    Param (
-        [Parameter(Mandatory=$true)]
-        [String] $Ip_Idrac,
+    [CmdletBinding(DefaultParameterSetName='Host')]
+	param(
+        [Parameter(Mandatory=$true, ParameterSetName='Ip')]
+        [Alias("idrac_ip")]
+        [IpAddress]$Ip_Idrac,
+        [Parameter(Mandatory=$true, ParameterSetName='Host')]
+        [Alias("Server")]
+        [string]$Hostname,
 
         [Parameter(Mandatory=$true)]
-        [pscredential] $Credential
+        [pscredential] $Credential,
+
+        [Switch]$NoProxy
     )
 
-    If ( -not [ipaddress]::TryParse($Ip_Idrac,[ref][ipaddress]::Loopback) ) { Throw 'Bad IP address format' }
+    If ($PSBoundParameters['Hostname']) {
+        $Ip_Idrac = [system.net.dns]::Resolve($Hostname).AddressList.IPAddressToString
+    }
+    Else {
+        If ( -not [ipaddress]::TryParse($Ip_Idrac,[ref][ipaddress]::Loopback) ) { Throw 'Bad IP address format' }
+    }
+
+    $Headers = New-Object "System.Collections.Generic.Dictionary[[String],[String]]"
+    $Headers.Add("Content-Type", "application/json")
+    $Headers.Add("Accept", "application/json")
+
+    $WebRequestParameter = @{
+        Headers = $Headers
+        Method = 'Post'
+        ContentType = 'application/json'
+    }
+
+    If (! $NoProxy) { Set-myProxyAsDefault -Uri "Https://$Ip_Idrac" | Out-null }
+    Else {
+        Write-Verbose "No proxy requested"
+        $Proxy = [System.Net.WebProxy]::new()
+        $WebSession = [Microsoft.PowerShell.Commands.WebRequestSession]::new()
+        $WebSession.Proxy = $Proxy
+        $WebRequestParameter.WebSession = $WebSession
+        If ($PSVersionTable.PSVersion.Major -gt 5) { $WebRequestParameter.SkipCertificateCheck = $true }
+    }
 
 
     $UserName = $Credential.UserName
     $Password = $Credential.GetNetworkCredential().Password
     $UserDetails = @{ "UserName" = $UserName; "Password" = $Password } | ConvertTo-Json
+    $WebRequestParameter.Body = $UserDetails
+    $WebRequestParameter.Uri = "https://$Ip_Idrac/redfish/v1/SessionService/Sessions/" 
 
-    $Headers = New-Object "System.Collections.Generic.Dictionary[[String],[String]]"
-    $Headers.Add("Content-Type", "application/json")
-    $Headers.Add("Accept", "application/json")
-    
     Try {
 
-        $SessionUrl = "https://$Ip_Idrac/redfish/v1/SessionService/Sessions/" 
-        $SessResponse = Invoke-WebRequest $SessionUrl -Method 'POST' -Headers $Headers -Body $UserDetails
+        $WebRequestParameter.Uri = "https://$Ip_Idrac/redfish/v1/SessionService/Sessions/" 
+        $SessResponse = Invoke-WebRequest @WebRequestParameter
 
     } Catch {
         
         Try {
-
+            $WebRequestParameter.Uri = "https://$Ip_Idrac/redfish/v1/Sessions/" 
             $SessionUrl = "https://$Ip_Idrac/redfish/v1/Sessions/"
-            $SessResponse = Invoke-WebRequest $SessionUrl -Method 'POST' -Headers $Headers -Body $UserDetails -ContentType $Type
+            $SessResponse = Invoke-WebRequest @WebRequestParameter
 
         } Catch {
 
@@ -67,6 +96,7 @@ Function New-RacSession {
         
         }
     }
+
     If ( $SessResponse.StatusCode -eq 201 ) {
 
         $Sessheaders = New-Object "System.Collections.Generic.Dictionary[[String],[String]]"

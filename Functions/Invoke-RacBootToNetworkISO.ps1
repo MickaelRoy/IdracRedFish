@@ -37,14 +37,18 @@
     Get-RacVirtualDriveStatus
 
 .NOTES
-   The passord for SVCFRPARISODRACPRD account can be fount on cyberark
-   https://cyber-ark.cib.echonet/PasswordVault/ObjectDetails.aspx?Data=V0lOVEVMLVNSVl5AXlJvb3ReQF5XaXRob3V0LUNvbm5lY3Rpb24tQXBwbGljYXRpb24tR2VuZXJpYy1TVkNGUlBBUklTT0RSQUNQUkReQF4wXkBeRmFsc2VeQF5GYWxzZV5AXl5AXkJhY2tVUkw9TXNnRXJyPU1zZ0luZm89
 #>
 Function Invoke-RacBootToNetworkISO {
-    [CmdletBinding()]
+    [CmdletBinding(DefaultParameterSetName='Host')]
 	param(
-		[Parameter(Mandatory=$true, ParameterSetName = "Creds")]
-        [string]$Ip_Idrac,
+		[Parameter(ParameterSetName = "Creds")]
+        [Parameter(Mandatory=$true, ParameterSetName='Ip')]
+        [Alias("idrac_ip")]
+        [IpAddress]$Ip_Idrac,
+		[Parameter(ParameterSetName = "Creds")]
+        [Parameter(Mandatory=$true, ParameterSetName='Host')]
+        [Alias("Server")]
+        [string]$Hostname,
 		[Parameter(Mandatory=$true)]
         [string]$PathIso,
         [Parameter(Mandatory=$true, ParameterSetName = "Creds")]
@@ -54,29 +58,44 @@ Function Invoke-RacBootToNetworkISO {
 		[Parameter(Mandatory=$true)]
         [string]$SharePwd,
         [Parameter(Mandatory=$true, ParameterSetName = "Session")]
-        [PSCustomObject]$Session
+        [PSCustomObject]$Session,
 
+        [Switch]$NoProxy
 	)
 
+    If ($PSBoundParameters['Hostname']) {
+        $Ip_Idrac = [system.net.dns]::Resolve($Hostname).AddressList.IPAddressToString
+    }
 
-        Switch ($PsCmdlet.ParameterSetName) {
-            Creds {
-                $WebRequestParameter = @{
-                    Headers = @{"Accept"="application/json"}
-                    Credential = $Credential
-                    Method = 'Post'
-                    ContentType = 'application/json'
-                }
-            }
-
-            Session {
-                $WebRequestParameter = @{
-                    Headers = $Session.Headers
-                    Method = 'Post'
-                }
-                $Ip_Idrac = $Session.IPAddress
+    Switch ($PsCmdlet.ParameterSetName) {
+        Creds {
+            $WebRequestParameter = @{
+                Headers = @{"Accept"="application/json"}
+                Credential = $Credential
+                Method = 'Post'
+                ContentType = 'application/json'
             }
         }
+
+        Session {
+            $WebRequestParameter = @{
+                Headers = $Session.Headers
+                Method = 'Post'
+            }
+            $Ip_Idrac = $Session.IPAddress
+        }
+    }
+
+    If (! $NoProxy) { Set-myProxyAsDefault -Uri "Https://$Ip_Idrac" | Out-null }
+    Else {
+        Write-Verbose "No proxy requested"
+        $Proxy = [System.Net.WebProxy]::new()
+        $WebSession = [Microsoft.PowerShell.Commands.WebRequestSession]::new()
+        $WebSession.Proxy = $Proxy
+        $WebRequestParameter.WebSession = $WebSession
+        If ($PSVersionTable.PSVersion.Major -gt 5) { $WebRequestParameter.SkipCertificateCheck = $true }
+    }
+
 
 # Payload creation for Idrac request
     $Uri = [uri]::new($PathIso)

@@ -26,48 +26,73 @@
 #>
 
 Function Reset-RacIdrac {
-    [CmdletBinding()]
+    [CmdletBinding(DefaultParameterSetName='Host')]
 	param(
-		[Parameter(Mandatory=$true, ParameterSetName = "Creds")]
-        [string]$Ip_Idrac,
+		[Parameter(ParameterSetName = "Creds")]
+        [Parameter(Mandatory=$true, ParameterSetName='Ip')]
+        [Alias("idrac_ip")]
+        [IpAddress]$Ip_Idrac,
+		[Parameter(ParameterSetName = "Creds")]
+        [Parameter(Mandatory=$true, ParameterSetName='Host')]
+        [Alias("Server")]
+        [string]$Hostname,
         [Parameter(Mandatory=$true, ParameterSetName = "Creds")]
         [pscredential]$Credential,
         [Parameter(Mandatory=$true, ParameterSetName = "Session")]
-        [PSCustomObject]$Session
+        [PSCustomObject]$Session, 
+        [Switch]$NoProxy
 	)
 
-        Switch ($PsCmdlet.ParameterSetName) {
-            Creds {
-                $WebRequestParameter = @{
-                    Headers = @{"Accept"="application/json"}
-                    Credential = $Credential
-                    Method = 'Post'
-                    ContentType = 'application/json'
-                }
-            }
+    If ($PSBoundParameters['Hostname']) {
+        $Ip_Idrac = [system.net.dns]::Resolve($Hostname).AddressList.IPAddressToString
+    }
 
-            Session {
-                $WebRequestParameter = @{
-                    Headers = $Session.Headers
-                    Method = 'Post'
-                }
-                $Ip_Idrac = $Session.IPAddress
+    Switch ($PsCmdlet.ParameterSetName) {
+        Creds {
+            $WebRequestParameter = @{
+                Headers = @{"Accept"="application/json"}
+                Credential = $Credential
+                Method = 'Post'
+                ContentType = 'application/json'
             }
         }
 
+        Session {
+            $WebRequestParameter = @{
+                Headers = $Session.Headers
+                Method = 'Post'
+            }
+            $Ip_Idrac = $Session.IPAddress
+        }
+    }
+
+    If (! $NoProxy) { Set-myProxyAsDefault -Uri "Https://$Ip_Idrac" | Out-null }
+    Else {
+        Write-Verbose "No proxy requested"
+        $Proxy = [System.Net.WebProxy]::new()
+        $WebSession = [Microsoft.PowerShell.Commands.WebRequestSession]::new()
+        $WebSession.Proxy = $Proxy
+        $WebRequestParameter.WebSession = $WebSession
+        If ($PSVersionTable.PSVersion.Major -gt 5) { $WebRequestParameter.SkipCertificateCheck = $true }
+    }
+
     $JsonBody = @{"ResetType"="GracefulRestart"}
     $JsonBody = $JsonBody | ConvertTo-Json -Compress
+    $WebRequestParameter.Body = $JsonBody
 
     $PostUri = "https://$Ip_Idrac/redfish/v1/Managers/iDRAC.Embedded.1/Actions/Manager.Reset"
     $WebRequestParameter.Uri = $PostUri
+
+
     Try {
-        $PostResult = Invoke-RestMethod @WebRequestParameter
-        if ($PostResult.StatusCode -eq 200 -or $PostResult.StatusCode -eq 202) {
+        
+        $PostResult = Invoke-WebRequest @WebRequestParameter
+        If ($PostResult.StatusCode -eq 200 -or $PostResult.StatusCode -eq 202) {
              Write-Host "Idrac is about to be reset."
-        }  else {
-            $status_code = $result.StatusCode
+        } Else {
+            $status_code = $PostResult.StatusCode
             Write-Host "Reset request has failed with code $status_code."
-            return
+            Return
        }
     } Catch {
         Throw $_

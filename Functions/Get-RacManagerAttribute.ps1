@@ -30,51 +30,75 @@
 #>
 
 Function Get-RacManagerAttribute {
-    [CmdletBinding()]
+    [CmdletBinding(DefaultParameterSetName='Host')]
 	param(
-		[Parameter(Mandatory=$true, ParameterSetName = "Creds")]
-        [string]$Ip_Idrac,
+		[Parameter(ParameterSetName = "Creds")]
+        [Parameter(Mandatory=$true, ParameterSetName='Ip')]
+        [Alias("idrac_ip")]
+        [IpAddress]$Ip_Idrac,
+		[Parameter(ParameterSetName = "Creds")]
+        [Parameter(Mandatory=$true, ParameterSetName='Host')]
+        [Alias("Server")]
+        [string]$Hostname,
         [Parameter(Mandatory=$true, ParameterSetName = "Creds")]
         [pscredential]$Credential,
         [Parameter(Mandatory=$true, ParameterSetName = "Session")]
         [PSCustomObject]$Session,
-        [Parameter(Mandatory=$true)]
-        [string]$Attribute
+        [Parameter(Mandatory=$false)]
+        [string]$Attribute, 
+        [Switch]$NoProxy
 	)
 
-        Switch ($PsCmdlet.ParameterSetName) {
-            Creds {
-                $WebRequestParameter = @{
-                    Headers = @{"Accept"="application/json"}
-                    Credential = $Credential
-                    Method = 'Get'
-                    ContentType = 'application/json'
-                }
-            }
+    If ($PSBoundParameters['Hostname']) {
+        $Ip_Idrac = [system.net.dns]::Resolve($Hostname).AddressList.IPAddressToString
+    }
 
-            Session {
-                $WebRequestParameter = @{
-                    Headers = $Session.Headers
-                    Method = 'Get'
-                }
-                $Ip_Idrac = $Session.IPAddress
+    Switch ($PsCmdlet.ParameterSetName) {
+        Creds {
+            $WebRequestParameter = @{
+                Headers = @{"Accept"="application/json"}
+                Credential = $Credential
+                Method = 'Get'
+                ContentType = 'application/json'
             }
         }
 
-# Built User list to get user's Id
+        Session {
+            $WebRequestParameter = @{
+                Headers = $Session.Headers
+                Method = 'Get'
+            }
+            $Ip_Idrac = $Session.IPAddress
+        }
+    }
+
+    # Built User list to get user's Id
     $GetUri = "https://$Ip_Idrac/redfish/v1/Managers/iDRAC.Embedded.1/Attributes"
     $WebRequestParameter.Uri = $GetUri
+    
+    If (! $NoProxy) { Set-myProxyAsDefault -Uri $GetUri | Out-null }
+    Else {
+        Write-Verbose "No proxy requested"
+        $Proxy = [System.Net.WebProxy]::new()
+        $WebSession = [Microsoft.PowerShell.Commands.WebRequestSession]::new()
+        $WebSession.Proxy = $Proxy
+        $WebRequestParameter.WebSession = $WebSession
+        If ($PSVersionTable.PSVersion.Major -gt 5) { $WebRequestParameter.SkipCertificateCheck = $true }
+    }
+
+
     Try {
         $GetResult = Invoke-RestMethod @WebRequestParameter
     } Catch {
         Throw $_
     }
 
-    $Object = $($GetResult.Attributes).psobject.Properties | Where-object Name -eq $Attribute
+    $Object = $($GetResult.Attributes).psobject.Properties | Where-Object Name -eq $Attribute
     If ($null -eq $Object) {
         Write-host "This attribute does not exist"
     } Else {
         Return  $Object.Value
     }
 }
+
 Export-ModuleMember Get-RacManagerAttribute

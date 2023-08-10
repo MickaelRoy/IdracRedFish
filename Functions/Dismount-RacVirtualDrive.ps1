@@ -35,40 +35,62 @@ System.Management.Automation.PSCustomObject
    Invoke-RacBootToNetworkISO cmdlet
 #>
 Function Dismount-RacVirtualDrive {
-    [CmdletBinding()]
+    [CmdletBinding(DefaultParameterSetName='Host')]
 	param(
-		[Parameter(Mandatory=$true, ParameterSetName = "Creds")]
-        [string]$Ip_Idrac,
+		[Parameter(ParameterSetName = "Creds")]
+        [Parameter(Mandatory=$true, ParameterSetName='Ip')]
+        [Alias("idrac_ip")]
+        [IpAddress]$Ip_Idrac,
+		[Parameter(ParameterSetName = "Creds")]
+        [Parameter(Mandatory=$true, ParameterSetName='Host')]
+        [Alias("Server")]
+        [string]$Hostname,
         [Parameter(Mandatory=$true, ParameterSetName = "Creds")]
         [pscredential]$Credential,
         [Parameter(Mandatory=$true, ParameterSetName = "Session")]
-        [PSCustomObject]$Session
+        [PSCustomObject]$Session, 
+        [Switch]$NoProxy
 	)
 
-        Switch ($PsCmdlet.ParameterSetName) {
-            Creds {
-                $WebRequestParameter = @{
-                    Headers = @{"Accept"="application/json"}
-                    Credential = $Credential
-                    Method = 'Post'
-                    ContentType = 'application/json'
-                    ErrorVariable = 'RespErr'
-                }
-            }
 
-            Session {
-                $WebRequestParameter = @{
-                    Headers = $Session.Headers
-                    Method = 'Post'
-                    ErrorVariable = 'RespErr'
-                }
-                $Ip_Idrac = $Session.IPAddress
+    If ($PSBoundParameters['Hostname']) {
+        $Ip_Idrac = [system.net.dns]::Resolve($Hostname).AddressList.IPAddressToString
+    }
+
+    Switch ($PsCmdlet.ParameterSetName) {
+        Creds {
+            $WebRequestParameter = @{
+                Headers = @{"Accept"="application/json"}
+                Credential = $Credential
+                Method = 'Get'
+                ContentType = 'application/json'
             }
-            
         }
+
+        Session {
+            $WebRequestParameter = @{
+                Headers = $Session.Headers
+                Method = 'Get'
+            }
+            $Ip_Idrac = $Session.IPAddress
+        }
+    }
 
     $CheckUri = "https://$Ip_Idrac/redfish/v1/Dell/Systems/System.Embedded.1/DellOSDeploymentService/Actions/DellOSDeploymentService.GetAttachStatus"
     $DettachUri = "https://$Ip_Idrac/redfish/v1/Dell/Systems/System.Embedded.1/DellOSDeploymentService/Actions/DellOSDeploymentService.DetachISOImage"
+
+
+    If (! $NoProxy) { Set-myProxyAsDefault -Uri $CheckUri | Out-null }
+    Else {
+        Write-Verbose "No proxy requested"
+        $Proxy = [System.Net.WebProxy]::new()
+        $WebSession = [Microsoft.PowerShell.Commands.WebRequestSession]::new()
+        $WebSession.Proxy = $Proxy
+        $WebRequestParameter.WebSession = $WebSession
+        If ($PSVersionTable.PSVersion.Major -gt 5) { $WebRequestParameter.SkipCertificateCheck = $true }
+    }
+
+
 
 # First Check
     
@@ -80,7 +102,7 @@ Function Dismount-RacVirtualDrive {
     Write-Verbose -Message "Current Status is: $CheckResult"
 
     If ($CheckResult -eq "NotAttached") {
-        Return "Iso Attach Status is $($CheckResult), Nothing to do"
+        Return "Iso Attach Status is $($CheckResult), Nothing to do."
     } 
 
 # Send the request to Idrac

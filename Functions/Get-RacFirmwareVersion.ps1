@@ -1,41 +1,4 @@
-﻿<#
-.Synopsis
-   Cmdlet used to get virtual drive attachement status using REDFISH API.
-
-.DESCRIPTION
-   Cmdlet used to get virtual drive attachement status using REDFISH API.
-   Usualy this cmdlet is used to check wether Iso is attached to RFS.
-
-.PARAMETER Ip_Idrac
-
-Specifies the IpAddress of Remote system's Idrac.
-
-.PARAMETER RacUser
-
-Specifies the User for Idrac connection, root by default.
-
-.PARAMETER RacPwd
-
-Specifies the password for Idrac connection.
-
-.OUTPUTS
-System.String
-
-.EXAMPLE
-    Get-RacBiosSettings -Ip_Idrac 192.168.0.120 -RacUser root -RacPwd calvin
-
-    This example returns attachment status.
-
-.LINK
-    Invoke-RacBootToNetworkISO
-    Dismount-RacVirtualDrive
-
-.NOTES
-   Cmdlet used to get remote file system attachement. 
-   To connect, attach and boot on Iso image, you have to use 
-   Invoke-RacBootToNetworkISO cmdlet
-#>
-Function Get-RacVirtualDriveStatus {
+﻿Function Get-RacFirmwareVersion {
     [CmdletBinding(DefaultParameterSetName='Host')]
 	param(
 		[Parameter(ParameterSetName = "Creds")]
@@ -49,8 +12,7 @@ Function Get-RacVirtualDriveStatus {
         [Parameter(Mandatory=$true, ParameterSetName = "Creds")]
         [pscredential]$Credential,
         [Parameter(Mandatory=$true, ParameterSetName = "Session")]
-        [PSCustomObject]$Session,
-
+        [PSCustomObject]$Session, 
         [Switch]$NoProxy
 	)
 
@@ -63,7 +25,7 @@ Function Get-RacVirtualDriveStatus {
             $WebRequestParameter = @{
                 Headers = @{"Accept"="application/json"}
                 Credential = $Credential
-                Method = 'Post'
+                Method = 'Get'
                 ContentType = 'application/json'
             }
         }
@@ -71,7 +33,7 @@ Function Get-RacVirtualDriveStatus {
         Session {
             $WebRequestParameter = @{
                 Headers = $Session.Headers
-                Method = 'Post'
+                Method = 'Get'
             }
             $Ip_Idrac = $Session.IPAddress
         }
@@ -87,20 +49,23 @@ Function Get-RacVirtualDriveStatus {
         If ($PSVersionTable.PSVersion.Major -gt 5) { $WebRequestParameter.SkipCertificateCheck = $true }
     }
 
-# Send the request to Idrac
-    Write-Verbose -Message "Getting network ISO attach information for iDRAC $Ip_Idrac"
-    $WebRequestParameter.Uri = "https://$Ip_Idrac/redfish/v1/Dell/Systems/System.Embedded.1/DellOSDeploymentService/Actions/DellOSDeploymentService.GetAttachStatus"
-    $JsonBody = @{} | ConvertTo-Json -Compress
-    $WebRequestParameter.Body = $JsonBody
+    $expand_query ='?$expand=*($levels=1)'
+    $WebRequestParameter.uri = "https://$Ip_Idrac/redfish/v1/UpdateService/FirmwareInventory$expand_query"
+    
+    $GetResult = Invoke-RestMethod @WebRequestParameter
 
-    Try {
-        $PostResult = Invoke-RestMethod @WebRequestParameter
-    } Catch {
-        Throw $_
+    $GroupedResults = $GetResult.Members | Group-Object Name
+
+    Foreach ($Result in $GroupedResults) {
+        $Object = [PsCustomObject] @{ Name = $Result.Name }
+
+        $Result.Group.ForEach({
+            $Object.psobject.properties.Add( [psnoteproperty]::new($($_.Id.Split('-')[0]),$($_.Version)) )
+        })
+        $Object
     }
-
-    Return $PostResult.ISOAttachStatus
 
 }
 
-Export-ModuleMember Get-RacVirtualDriveStatus
+
+Export-ModuleMember Get-RacFirmwareVersion

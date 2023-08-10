@@ -36,79 +36,102 @@
 #>
 
 Function Set-RacManagerAttribute {
-    [CmdletBinding()]
-	param(
-		[Parameter(Mandatory=$true, ParameterSetName = "Creds")]
-        [string]$Ip_Idrac,
-        [Parameter(Mandatory=$true, ParameterSetName = "Creds")]
+    [CmdletBinding(DefaultParameterSetName = 'Host')]
+    param(
+        [Parameter(ParameterSetName = "Creds")]
+        [Parameter(Mandatory = $true, ParameterSetName = 'Ip')]
+        [Alias("idrac_ip")]
+        [IpAddress]$Ip_Idrac,
+        [Parameter(ParameterSetName = "Creds")]
+        [Parameter(Mandatory = $true, ParameterSetName = 'Host')]
+        [Alias("Server")]
+        [string]$Hostname,
+        [Parameter(Mandatory = $true, ParameterSetName = "Creds")]
         [pscredential]$Credential,
-        [Parameter(Mandatory=$true, ParameterSetName = "Session")]
+        [Parameter(Mandatory = $true, ParameterSetName = "Session")]
         [PSCustomObject]$Session,
-        [Parameter(Mandatory=$true)]
+        [Parameter(Mandatory = $true)]
         [string]$Attribute,
-        [Parameter(Mandatory=$true)]
+        [Parameter(Mandatory = $true)]
         [string]$Value
-	)
+    )
 
-        Switch ($PsCmdlet.ParameterSetName) {
-            Creds {
-                $WebRequestParameter = @{
-                    Headers = @{"Accept"="application/json"}
-                    Credential = New-Object System.Management.Automation.PSCredential($Credential.UserName, $Credential.Password)
-                    Method = 'Get'
-                    ContentType = 'application/json'
-                }
-            }
+    If ($PSBoundParameters['Hostname']) {
+        $Ip_Idrac = [system.net.dns]::Resolve($Hostname).AddressList.IPAddressToString
+    }
 
-            Session {
-                $WebRequestParameter = @{
-                    Headers = $Session.Headers
-                    Method = 'Get'
-                }
-                $Ip_Idrac = $Session.IPAddress
+    Switch ($PsCmdlet.ParameterSetName) {
+        Creds {
+            $WebRequestParameter = @{
+                Headers     = @{"Accept" = "application/json" }
+                Credential  = $Credential
+                Method      = 'Get'
+                ContentType = 'application/json'
             }
         }
 
-# Built User list to get user's Id
+        Session {
+            $WebRequestParameter = @{
+                Headers = $Session.Headers
+                Method  = 'Get'
+            }
+            $Ip_Idrac = $Session.IPAddress
+        }
+    }
+
+    If (! $NoProxy) { Set-myProxyAsDefault -Uri "Https://$Ip_Idrac" | Out-null }
+    Else {
+        Write-Verbose "No proxy requested"
+        $Proxy = [System.Net.WebProxy]::new()
+        $WebSession = [Microsoft.PowerShell.Commands.WebRequestSession]::new()
+        $WebSession.Proxy = $Proxy
+        $WebRequestParameter.WebSession = $WebSession
+        If ($PSVersionTable.PSVersion.Major -gt 5) { $WebRequestParameter.SkipCertificateCheck = $true }
+    }
+
+    # Built User list to get user's Id
     $GetUri = "https://$Ip_Idrac/redfish/v1/Managers/iDRAC.Embedded.1/Attributes"
     $WebRequestParameter.Uri = $GetUri
     Try {
         $GetResult = Invoke-RestMethod @WebRequestParameter
-    } Catch {
+    }
+    Catch {
         Throw $_
     }
 
 
-# Change Password for User specified
+    # Change Password for User specified
     $JsonBody = @{
         "Attributes" = @{
             $Attribute = $Value
         }
     } | ConvertTo-Json -Compress
     $WebRequestParameter.Body = $JsonBody
-    $WebRequestParameter.Method = "PATCH"
+    $WebRequestParameter.Method = "Patch"
 
     $PatchUri = "https://$Ip_Idrac$($GetResult.'@odata.id')"
     $WebRequestParameter.Uri = $PatchUri
     Try {
         $PatchResult = Invoke-WebRequest @WebRequestParameter
-    } Catch {
+    }
+    Catch {
         Throw $_
     }
 
-# Return result according to api status code
+    # Return result according to api status code
 
     If ($PatchResult.StatusCode -eq 200) {
-        Write-Verbose -Message $([String]::Format("Statuscode {0} returned successfully for Patch command, iDRAC user password changed`n",$PatchResult.StatusCode))
-    } Else {
-        Throw $([String]::Format("FAIL, statuscode {0} returned, password not changed",$PatchResult.StatusCode))
+        Write-Verbose -Message $([String]::Format("Statuscode {0} returned successfully for Patch command, iDRAC user password changed`n", $PatchResult.StatusCode))
+    }
+    Else {
+        Throw $([String]::Format("FAIL, statuscode {0} returned, password not changed", $PatchResult.StatusCode))
     }
 
     $overall_job_output = ($PatchResult.Content | ConvertFrom-Json).'@Message.ExtendedInfo'
 
     Return [PsCustomObject] @{
-        'State' = $PatchResult.StatusDescription
-        'Message' = $overall_job_output[0].Message
+        'State'       = $PatchResult.StatusDescription
+        'Message'     = $overall_job_output[0].Message
         'Information' = $overall_job_output[0].Resolution
     }
 
