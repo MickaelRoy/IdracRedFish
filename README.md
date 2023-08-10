@@ -12,7 +12,10 @@ PS C:\idrac-refdish-powershell-module> Ipmo .\IdracRedfish
 ## cmdlets inside
 
 * Dismount-RacVirtualDrive
-* Get-RacBiosSettings
+* Get-RacBiosSettings0
+* Get-RacFirmwareVersion
+* Get-RacJobStatus
+* Get-RacManagerAttribute
 * Get-RacPendingBiosSettings
 * Get-RacPowerState
 * Get-RacSession
@@ -25,9 +28,14 @@ PS C:\idrac-refdish-powershell-module> Ipmo .\IdracRedfish
 * Register-RacBiosSettings
 * Remove-RacSession
 * Remove-RacUser
+* Repair-IdracBadGateway
+* Reset-RacIdrac
+* Set-RacManagerAttribute
 * Set-RacPowerState
 * Set-RacUserPassword
 * Submit-RacPendingBiosSettings
+* Test-RacRedfish
+* Update-RacFirmware
 
 ## Use Case examples
 ```powershell
@@ -42,8 +50,12 @@ Submit-RacPendingBiosSettings -Session $Session -Restart
 ```
 
 ## Change Log
+### 2.1.0 Proxy Update and Hostname parameter
+All cmdlets can detect and use the proxy user.
+Also, hostname parameter has been added beside Ip_Idrac.
+
 ### 2.0.0 Massive update
-All cmdlet have been updated to manage token authentication and avoid clear password usage.  
+All cmdlets have been updated to manage token authentication and avoid clear password usage.  
 You can use Credential parameter to pass credentials during unique operation or,  
 you can generate a token with New-Racsession cmdlet that you store in a variable.  
 
