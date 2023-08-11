@@ -50,7 +50,7 @@ Submit-RacPendingBiosSettings -Session $Session -Restart
 ```
 
 ## Change Log
-### 2.1.0 Proxy Update and Hostname parameter
+### 2.1.0 Proxy management and Hostname parameter
 All cmdlets can detect and use the proxy user.
 Also, hostname parameter has been added beside Ip_Idrac.
 
