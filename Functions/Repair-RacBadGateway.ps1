@@ -42,4 +42,4 @@
     }
 }
  
- Export-ModuleMember Repair-IdracBadGateway
+ Export-ModuleMember Repair-RacBadGateway

@@ -12,7 +12,7 @@ PS C:\idrac-refdish-powershell-module> Ipmo .\IdracRedfish
 ## cmdlets inside
 
 * Dismount-RacVirtualDrive
-* Get-RacBiosSettings0
+* Get-RacBiosSettings
 * Get-RacFirmwareVersion
 * Get-RacJobStatus
 * Get-RacManagerAttribute

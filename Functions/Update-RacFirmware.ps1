@@ -67,7 +67,7 @@
 
     }
     If ( $GetResult.Model.Substring(0, 2) -le 13 ) { 
-        Write-Host "Idrac8 and below cannot be update like that for the moment"
+        Write-Host "Idrac8 and below cannot be updated like that for the moment"
         Return
     }
     Else {
