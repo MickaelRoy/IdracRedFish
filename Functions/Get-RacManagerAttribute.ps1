@@ -45,7 +45,8 @@ Function Get-RacManagerAttribute {
         [Parameter(Mandatory=$true, ParameterSetName = "Session")]
         [PSCustomObject]$Session,
         [Parameter(Mandatory=$false)]
-        [string]$Attribute, 
+        [string]$Attribute,
+
         [Switch]$NoProxy
 	)
 

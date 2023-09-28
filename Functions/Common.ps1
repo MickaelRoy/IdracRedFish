@@ -30,7 +30,7 @@ Function Set-myProxyAsDefault {
     If (! [System.Net.WebRequest]::GetSystemWebProxy().IsBypassed($Uri) ) {
         [Uri]$ProxyUri = [System.Net.WebRequest]::GetSystemWebProxy().GetProxy($Uri)
         [System.Net.WebRequest]::DefaultWebProxy = [System.Net.WebProxy]($ProxyUri.Authority)
-        [System.Net.WebRequest]::DefaultWebProxy.BypassProxyOnLocal = $true
+        [System.Net.WebRequest]::DefaultWebProxy.BypassProxyOnLocal = $false
         [System.Net.WebRequest]::DefaultWebProxy.UseDefaultCredentials = $true
     }
     Return [System.Net.WebRequest]::DefaultWebProxy

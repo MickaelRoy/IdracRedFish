@@ -53,7 +53,9 @@ Function Set-RacManagerAttribute {
         [Parameter(Mandatory = $true)]
         [string]$Attribute,
         [Parameter(Mandatory = $true)]
-        [string]$Value
+        [string]$Value,
+
+        [Switch]$NoProxy
     )
 
     If ($PSBoundParameters['Hostname']) {
