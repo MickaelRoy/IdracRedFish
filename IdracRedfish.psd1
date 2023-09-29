@@ -12,7 +12,7 @@
 RootModule = '.\IdracRedfish.psm1'
 
 # Version number of this module.
-ModuleVersion = '2.2.0'
+ModuleVersion = '2.2.1'
 
 # ID used to uniquely identify this module
 GUID = '8a459240-05be-48d1-b9c8-5124eeacb86e'

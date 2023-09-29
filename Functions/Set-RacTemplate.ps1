@@ -89,7 +89,7 @@ Function Set-RacTemplate {
         [Alias("TP", "FilePath")]
         [string]$TemplatePath,
 
-        [Parameter(mandatory=$true, HelpMessage="Current Ip Address.")]
+        [Parameter(mandatory=$false, HelpMessage="Current Ip Address.")]
         [Alias("Ip")]
         [string]$IpAddress,
 
@@ -130,18 +130,22 @@ Function Set-RacTemplate {
     Filter ConvertTo-IPFromBinary { ([System.Net.IPAddress]"$([System.Convert]::ToInt64($_,2))").IPAddressToString }
 
 
-    If ($null -eq $Hostname) { 
+    If ([String]::IsNullOrEmpty($Hostname)) { 
         Try {
             $Hostname = [System.Net.Dns]::GetHostEntry($IpAddress).HostName
+            Write-Host "Hostname is not specified, I assume it's $Hostname" -ForegroundColor Yellow
         } Catch {
-            Throw "$IpAddress cannot be resolved, please use -IpAddress parameter."
+            Throw "$IpAddress cannot be resolved, please use -Hostname parameter."
         }
+    } Else {
+        Write-Host "Hostname is specified: $Hostname" -ForegroundColor Yellow
     }
     
-     If (-not [string]::IsNullOrEmpty($Hostname)) {
 
+     If (-not [string]::IsNullOrEmpty($Hostname)) {
         Try {
             $HostEntry = [System.Net.Dns]::GetHostEntry($Hostname)
+
             If ($PSBoundParameters.Keys -eq 'StaticIpAddress') {
                 If ($StaticIpAddress -ne $HostEntry.AddressList.IPAddressToString) {
                     Write-Warning "StaticIpAddress does not match $Hostname resolution"
@@ -151,13 +155,13 @@ Function Set-RacTemplate {
                 Write-Host "StaticIpAddress is not specified, I assume it's $StaticIpAddress" -ForegroundColor Yellow
             }
         } Catch {
-            Throw "$Hostname cannot be resolved, please use -Hostname parameter."
+            Throw "$Hostname cannot be resolved, please use -IpAddress parameter."
         }
     } 
      
     Write-Host "Starting correction of the template $([System.Io.Path]::GetFileName($TemplatePath)): " -NoNewline
     Try {
-        $ManualDNSEntry = "$IP,$Hostname"
+        $ManualDNSEntry = "$StaticIpAddress,$Hostname"
 
         $xml = [xml](Get-Content -Path $TemplatePath)
         $xmlUserName = $xml.SelectSingleNode("//Attribute[@Name='Users.2#UserName']")
@@ -209,7 +213,7 @@ Function Set-RacTemplate {
         Write-Host "OK" -ForegroundColor Green
 
         Write-Host "To import the template, please use the command:"
-        Write-Host "`tImport-RacTemplate -TemplatePath $TargetPath -Ip_Idrac $IpAddress -Credential `$Credential -Target ALL -ShutdownType Graceful" -ForegroundColor Cyan
+        Write-Host "`tImport-RacTemplate -TemplatePath $TargetPath -Ip_Idrac $StaticIpAddress -Credential `$Credential -Target ALL -ShutdownType Graceful" -ForegroundColor Cyan
 
 
     } Catch {
