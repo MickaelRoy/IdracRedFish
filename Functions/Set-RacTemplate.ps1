@@ -142,26 +142,26 @@ Function Set-RacTemplate {
     }
     
 
-     If (-not [string]::IsNullOrEmpty($Hostname)) {
-        Try {
-            $HostEntry = [System.Net.Dns]::GetHostEntry($Hostname)
-
-            If ($PSBoundParameters.Keys -eq 'StaticIpAddress') {
-                If ($StaticIpAddress -ne $HostEntry.AddressList.IPAddressToString) {
-                    Write-Warning "StaticIpAddress does not match $Hostname resolution"
+    If ([string]::IsNullOrEmpty($IpAddress)) {
+        If ($PSBoundParameters.Keys -eq 'StaticIpAddress') {
+            Write-Host "IpAddress is not specified, I assume it's $StaticIpAddress." -ForegroundColor Yellow
+            $IpAddress = $StaticIpAddress
+        } Else {
+            If ($PSBoundParameters.Keys -eq 'Hostname') {
+                Write-Host "IpAdress and StaticIpAddress are not specified, Trying to get IpAddress from $Hostname resolution." -ForegroundColor Yellow
+                Try {
+                    $HostEntry = [System.Net.Dns]::GetHostEntry($Hostname)
+                    $IpAddress = $HostEntry.AddressList.IPAddressToString
+                } Catch {
+                    Throw "$Hostname cannot be resolved, please use -IpAddress parameter."
                 }
-            } Else {
-                $StaticIpAddress = $HostEntry.AddressList.IPAddressToString
-                Write-Host "StaticIpAddress is not specified, I assume it's $StaticIpAddress" -ForegroundColor Yellow
             }
-        } Catch {
-            Throw "$Hostname cannot be resolved, please use -IpAddress parameter."
         }
-    } 
+    }
      
     Write-Host "Starting correction of the template $([System.Io.Path]::GetFileName($TemplatePath)): " -NoNewline
     Try {
-        $ManualDNSEntry = "$StaticIpAddress,$Hostname"
+        $ManualDNSEntry = "$IpAddress,$Hostname"
 
         $xml = [xml](Get-Content -Path $TemplatePath)
         $xmlUserName = $xml.SelectSingleNode("//Attribute[@Name='Users.2#UserName']")
@@ -189,20 +189,26 @@ Function Set-RacTemplate {
         $xmlDNS2 = $xml.SelectSingleNode("//Attribute[@Name='IPv4Static.1#DNS2']")
 
         If ($PSBoundParameters.Keys -eq 'StaticIpAddress') { $xmlAddress.InnerText = $StaticIpAddress }
-        Else { [void]$xmlAddress.ParentNode.RemoveChild($xmlAddress)}
+        Else { 
+            [void]$xmlAddress.ParentNode.RemoveChild($xmlAddress)
+          
+          # Si pas d'adresse IP statique demandée alors on ne touche pas au DHCP.
+            $xmlDHCPEnable = $xml.SelectSingleNode("//Attribute[@Name='IPv4.1#DHCPEnable']")
+            [void]$xmlDHCPEnable.ParentNode.RemoveChild($xmlDHCPEnable)
+        }
 
         $Gateway = $PrefixLength | ConvertTo-BinaryFromLength | ConvertTo-IPFromBinary
 
-        If ($PSBoundParameters.Keys -eq 'StaticIpAddress') { $xmlNetMask.InnerText = $Gateway }
+        If ($PSBoundParameters.Keys -eq 'Gateway') { $xmlNetMask.InnerText = $Gateway }
         Else { [void]$xmlNetMask.ParentNode.RemoveChild($xmlNetMask)}
 
-        If ($PSBoundParameters.Keys -eq 'StaticIpAddress') { $xmlGateway.InnerText = $NextHop }
+        If ($PSBoundParameters.Keys -eq 'NextHop') { $xmlGateway.InnerText = $NextHop }
         Else { [void]$xmlGateway.ParentNode.RemoveChild($xmlGateway)}
 
-        If ($PSBoundParameters.Keys -eq 'StaticIpAddress') { $xmlDNS1.InnerText = $PrimaryDns }
+        If ($PSBoundParameters.Keys -eq 'PrimaryDns') { $xmlDNS1.InnerText = $PrimaryDns }
         Else { [void]$xmlDNS1.ParentNode.RemoveChild($xmlDNS1)}
 
-        If ($PSBoundParameters.Keys -eq 'StaticIpAddress') { $xmlDNS2.InnerText = $SecondaryDns }
+        If ($PSBoundParameters.Keys -eq 'SecondaryDns') { $xmlDNS2.InnerText = $SecondaryDns }
         Else { [void]$xmlDNS2.ParentNode.RemoveChild($xmlDNS2)}
 
 
@@ -213,7 +219,7 @@ Function Set-RacTemplate {
         Write-Host "OK" -ForegroundColor Green
 
         Write-Host "To import the template, please use the command:"
-        Write-Host "`tImport-RacTemplate -TemplatePath $TargetPath -Ip_Idrac $StaticIpAddress -Credential `$Credential -Target ALL -ShutdownType Graceful" -ForegroundColor Cyan
+        Write-Host "`tImport-RacTemplate -TemplatePath $TargetPath -Ip_Idrac $IpAddress -Credential `$Credential -Target ALL -ShutdownType Graceful" -ForegroundColor Cyan
 
 
     } Catch {
