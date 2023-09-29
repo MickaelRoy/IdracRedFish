@@ -74,7 +74,7 @@ Date: 28/09/2023
 #>
 
 Function Set-RacTemplate {
-    [CmdletBinding()]
+    [CmdletBinding(DefaultParameterSetName = 'DHCP')]
     Param(
         [Parameter(mandatory=$true, HelpMessage="Path to template." )]
         [ValidateScript({
@@ -106,22 +106,22 @@ Function Set-RacTemplate {
         [ValidatePattern("idrac-\w+\.idrac.boursorama.fr")]
         [string]$Hostname, 
 
-        [Parameter(mandatory=$false, HelpMessage="Static Ip Address pushed with the template.")]
+        [Parameter(mandatory=$true, ParameterSetName = 'StaticIp', HelpMessage="Static Ip Address pushed with the template.")]
         [string]$StaticIpAddress,
 
-        [Parameter(mandatory=$false, HelpMessage="Gateway pushed with the template.")]
+        [Parameter(mandatory=$true, ParameterSetName = 'StaticIp', HelpMessage="Gateway pushed with the template.")]
         [Alias("GW")]
         [string]$NextHop,
         
-        [Parameter(mandatory=$false, HelpMessage="Prefix Length aka bit mask format.")]
+        [Parameter(mandatory=$true, ParameterSetName = 'StaticIp', HelpMessage="Prefix Length aka bit mask format.")]
         [Alias("PL")]
         [string]$PrefixLength,
         
-        [Parameter(mandatory=$false, HelpMessage="Primary DNS Address.")]
+        [Parameter(mandatory=$false, ParameterSetName = 'StaticIp', HelpMessage="Primary DNS Address.")]
         [Alias("DNS1")]
         [string]$PrimaryDns,
         
-        [Parameter(mandatory=$false, HelpMessage="Secondary DNS Address.")]
+        [Parameter(mandatory=$false, ParameterSetName = 'StaticIp', HelpMessage="Secondary DNS Address.")]
         [Alias("DNS2")]
         [string]$SecondaryDns
     )
@@ -187,13 +187,16 @@ Function Set-RacTemplate {
         $xmlGateway = $xml.SelectSingleNode("//Attribute[@Name='IPv4Static.1#Gateway']")
         $xmlDNS1 = $xml.SelectSingleNode("//Attribute[@Name='IPv4Static.1#DNS1']")
         $xmlDNS2 = $xml.SelectSingleNode("//Attribute[@Name='IPv4Static.1#DNS2']")
+        $xmlDHCPEnable = $xml.SelectSingleNode("//Attribute[@Name='IPv4.1#DHCPEnable']")
 
-        If ($PSBoundParameters.Keys -eq 'StaticIpAddress') { $xmlAddress.InnerText = $StaticIpAddress }
+        If ($PSBoundParameters.Keys -eq 'StaticIpAddress') { 
+            $xmlAddress.InnerText = $StaticIpAddress
+            $xmlDHCPEnable.InnerText = 'Disabled'
+        }
         Else { 
             [void]$xmlAddress.ParentNode.RemoveChild($xmlAddress)
           
           # Si pas d'adresse IP statique demandée alors on ne touche pas au DHCP.
-            $xmlDHCPEnable = $xml.SelectSingleNode("//Attribute[@Name='IPv4.1#DHCPEnable']")
             [void]$xmlDHCPEnable.ParentNode.RemoveChild($xmlDHCPEnable)
         }
 
