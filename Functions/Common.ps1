@@ -36,7 +36,6 @@ Function Set-myProxyAsDefault {
     Return [System.Net.WebRequest]::DefaultWebProxy
 }
 
-
 Function Get-LastValidIp {
     param ( 
         [parameter(ValueFromPipeline)]
@@ -88,6 +87,7 @@ Function Test-IpSubnets {
     Else { Return $false }
  
 }
+
 Function Start-CountDown {
     [CmdletBinding()]
 
@@ -105,27 +105,31 @@ param(
 
 Function Show-Menu {
     Param (        
+ 
         [Parameter(Mandatory=$true, ValueFromPipeline=$True)]
         [PsObject]$InputObject,
         [String] $Title,
         $KeySize = 25,
-        $Width = 60 
+        $Width = 60
+ 
     )
     Clear-Host
     $KeySize = $InputObject.psobject.Properties.Name.ForEach({ $_.Length }) | Sort-Object -Descending -Unique | Select-Object -First 1
     $ValueSize = ($InputObject.psobject.Properties.value.ForEach({ $_.Length }) | Sort-Object -Descending -Unique | Select-Object -First 1) + 1
     $Width = $KeySize + $ValueSize + 2
-    $Width += ($Width.length % 2)
 
     If ($Title.Length -gt $Width) { $Width = $Title.Length}
- 
+    $Width += ($Width.length % 2)
+
     Write-Host "╒$([string]::new('═', $Width))╕"
     If ($Title) {
- 
-        $emptyspaces = $([string]::new(' ', (($Width + 1) - $Title.Length)/2))
-        $Center = $Width / 2
-        [int]$centerL = $Center + ($Title.Length/2)
-        Write-Host $("│{0,$centerL}$emptyspaces│" -f $Title)
+        $emptyspaces = ($Width - $Title.Length)
+        $emptyspaces += ($Width.length % 2)
+        $TitleLSpaces = $emptyspaces/2 -1
+        $TitleRSpaces = $Width - ($TitleLSpaces + $Title.Length) -1
+        $TitleRSpaces += ($TitleRSpaces % 2)
+
+        Write-Host "│$([String]::new(' ', $TitleLSpaces))$Title$([String]::new(' ', $TitleRSpaces))│"
         Write-Host $("├$([string]::new('─', $Width))┤")
     
     }

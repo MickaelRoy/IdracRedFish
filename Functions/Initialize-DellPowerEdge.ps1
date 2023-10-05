@@ -23,11 +23,11 @@
 
         [Parameter(mandatory=$false, HelpMessage="current password, usually calvin.")]
         [AllowNull()]
-        [SecureString]$Password = (Read-Host -AsSecureString -Prompt "Enter the current password for $user"),
+        [SecureString]$Password = (Read-Host -AsSecureString -Prompt "If it's not 'calvin', enter the current password for $user"),
 
         [Parameter(mandatory=$false, HelpMessage="New password, get it in Securden.")]
         [AllowNull()]
-        [SecureString]$NewPassword = (Read-Host -AsSecureString -Prompt "Enter the new password for the privileged account"),
+        [SecureString]$NewPassword = (Read-Host -AsSecureString -Prompt "Enter the new password for the privileged account, leave blank to skip this step."),
 
         [Parameter(Mandatory=$false, HelpMessage="Idrac fqdn wether it's not declared in DNS yet.")]
         [string]$Hostname,
@@ -54,6 +54,10 @@
         [Parameter(Mandatory=$False)]
         [ValidateSet("ALL", "IDRAC", "BIOS")]
         [string]$Target = 'IDRAC',
+
+        [Parameter(Mandatory=$False)]
+        [ValidateSet("Graceful", "Forced", "NoReboot")]
+        [string]$ShutdownType = "NoReboot",
 
         [Switch]$NoProxy
     )
@@ -90,7 +94,8 @@
 
     If ($PSCmdlet.ShouldProcess("$IpAddress ($Target)", "Import the template")) {
         # Import du template
-        Import-RacTemplate -TemplatePath $FilePath -Ip_Idrac $IpAddress -Credential $Credential -Target $Target -ShutdownType NoReboot -NoProxy:$NoProxy
+        Echo "Import-RacTemplate -TemplatePath $FilePath -Ip_Idrac $IpAddress -Credential $Credential -Target $Target -ShutdownType Graceful "
+        Import-RacTemplate -TemplatePath $FilePath -Ip_Idrac $IpAddress -Credential $Credential -Target $Target -ShutdownType Graceful -NoProxy:$NoProxy -ShutdownType:$ShutdownType
     }
 }
 
