@@ -54,17 +54,17 @@ Ce script permet de configurer les cartes idrac9 intégrées sur les serveurs DE
 
 .EXAMPLE
 
-Set-RacTemplate -TemplatePath C:\temp\Idrac9_Template.xml -IpAddress 10.111.1.102 -Hostname idrac-panutaflax155.idrac.boursorama.fr
+New-RacTemplate -TemplatePath C:\temp\Idrac9_Template.xml -IpAddress 10.111.1.102 -Hostname idrac-panutaflax155.idrac.boursorama.fr
 
 Note: le mot de passe sécurisé est indiqué en face avant du serveur (étiquette "IDRAC Default Password").
 
 .EXAMPLE
 
-Set-RacTemplate -TemplatePath C:\temp\Idrac9_Template.xml -IpAddress 10.111.1.102 -Hostname idrac-panutaflax155.idrac.boursorama.fr -User root -Password calvin -NewPassword NewSecurePassword:! -PrimaryDns 10.4.2.2 -SecondaryDns 10.4.1.2
+New-RacTemplate -TemplatePath C:\temp\Idrac9_Template.xml -IpAddress 10.111.1.102 -Hostname idrac-panutaflax155.idrac.boursorama.fr -User root -Password calvin -NewPassword NewSecurePassword:! -PrimaryDns 10.4.2.2 -SecondaryDns 10.4.1.2
 
 .EXAMPLE
 
-Set-RacTemplate -TemplatePath C:\temp\Idrac9_Template.xml -IpAddress 10.111.1.102 -Hostname idrac-panutaflax155.idrac.boursorama.fr -User root -Password calvin -NewPassword NewSecurePassword:! -StaticIpAddress 10.111.1.102 -PrefixLength 24 -NextHop 10.111.1.254 -PrimaryDns 10.4.2.2 -SecondaryDns 10.4.1.2
+New-RacTemplate -TemplatePath C:\temp\Idrac9_Template.xml -IpAddress 10.111.1.102 -Hostname idrac-panutaflax155.idrac.boursorama.fr -User root -Password calvin -NewPassword NewSecurePassword:! -StaticIpAddress 10.111.1.102 -PrefixLength 24 -NextHop 10.111.1.254 -PrimaryDns 10.4.2.2 -SecondaryDns 10.4.1.2
 
 .NOTES
 
@@ -73,7 +73,7 @@ Date: 28/09/2023
 
 #>
 
-Function Set-RacTemplate {
+Function New-RacTemplate {
     [CmdletBinding(DefaultParameterSetName = 'DHCP')]
     Param(
         [Parameter(mandatory=$true, HelpMessage="Path to template." )]
@@ -86,8 +86,8 @@ Function Set-RacTemplate {
             }
                 return $true
         })]
-        [Alias("TP", "FilePath")]
-        [string]$TemplatePath,
+        [Alias("SP", "FilePath")]
+        [string]$SourcePath,
 
         [Parameter(mandatory=$false, HelpMessage="Current Ip Address.")]
         [Alias("Ip")]
@@ -96,11 +96,8 @@ Function Set-RacTemplate {
         [Parameter(mandatory=$false, HelpMessage="Idrac power user, default is root")]
         [string]$User = 'root',
 
-        [Parameter(mandatory=$false, HelpMessage="Default password for power user, usualy 'calvin'.")]
-        [string]$Password = 'calvin',
-
         [Parameter(mandatory=$false, HelpMessage="New password, get it in Securden.")]
-        [string]$NewPassword,
+        [SecureString]$NewPassword,
 
         [Parameter(Mandatory=$false, HelpMessage="Idrac fqdn wether it's not declared in DNS yet.")]
         [ValidatePattern("idrac-\w+\.idrac.boursorama.fr")]
@@ -109,7 +106,7 @@ Function Set-RacTemplate {
         [Parameter(mandatory=$true, ParameterSetName = 'StaticIp', HelpMessage="Static Ip Address pushed with the template.")]
         [string]$StaticIpAddress,
 
-        [Parameter(mandatory=$true, ParameterSetName = 'StaticIp', HelpMessage="Gateway pushed with the template.")]
+        [Parameter(mandatory=$false, ParameterSetName = 'StaticIp', HelpMessage="Gateway pushed with the template.")]
         [Alias("GW")]
         [string]$NextHop,
         
@@ -119,68 +116,112 @@ Function Set-RacTemplate {
         
         [Parameter(mandatory=$false, ParameterSetName = 'StaticIp', HelpMessage="Primary DNS Address.")]
         [Alias("DNS1")]
-        [string]$PrimaryDns,
+        [string]$PrimaryDns = "10.4.2.2" ,
         
         [Parameter(mandatory=$false, ParameterSetName = 'StaticIp', HelpMessage="Secondary DNS Address.")]
         [Alias("DNS2")]
-        [string]$SecondaryDns
+        [string]$SecondaryDns = "10.4.1.2"
     )
 
     Filter ConvertTo-BinaryFromLength { ("1" * $_).PadRight(32, "0") }
     Filter ConvertTo-IPFromBinary { ([System.Net.IPAddress]"$([System.Convert]::ToInt64($_,2))").IPAddressToString }
 
+    $Bilan = [PsCustomObject]::new()
 
+  # Guessing algo: Hostname
     If ([String]::IsNullOrEmpty($Hostname)) { 
         Try {
-            $Hostname = [System.Net.Dns]::GetHostEntry($IpAddress).HostName
+            $Hostname = [System.Net.Dns]::GetHostEntry($IpAddress).HostName.ToLower()
             Write-Host "Hostname is not specified, I assume it's $Hostname" -ForegroundColor Yellow
+            $Bilan.psobject.Members.Add([psnoteproperty]::new('Hostname', $Hostname))
         } Catch {
             Throw "$IpAddress cannot be resolved, please use -Hostname parameter."
         }
     } Else {
+        $Hostname = $Hostname.ToLower()
         Write-Host "Hostname is specified: $Hostname" -ForegroundColor Yellow
     }
     
 
+  # Guessing algo: Current Ip
     If ([string]::IsNullOrEmpty($IpAddress)) {
         If ($PSBoundParameters.Keys -eq 'StaticIpAddress') {
             Write-Host "IpAddress is not specified, I assume it's $StaticIpAddress." -ForegroundColor Yellow
             $IpAddress = $StaticIpAddress
         } Else {
             If ($PSBoundParameters.Keys -eq 'Hostname') {
-                Write-Host "IpAdress and StaticIpAddress are not specified, Trying to get IpAddress from $Hostname resolution." -ForegroundColor Yellow
+                Write-Host "IpAdress and StaticIpAddress are not specified, Trying to get IpAddress from $Hostname resolution." -ForegroundColor Yellow -NoNewline
                 Try {
                     $HostEntry = [System.Net.Dns]::GetHostEntry($Hostname)
                     $IpAddress = $HostEntry.AddressList.IPAddressToString
+                    Write-Host "Found -> $IpAddress" -ForegroundColor Yellow
                 } Catch {
                     Throw "$Hostname cannot be resolved, please use -IpAddress parameter."
                 }
             }
         }
     }
+
+  # Guessing algo: NextHop
+    If ([string]::IsNullOrEmpty($NextHop) -and (-not [string]::IsNullOrEmpty($StaticIpAddress))) { 
+        $NextHop = Get-LastValidIp "$StaticIpAddress/$PrefixLength"
+        Write-Host "NextHop is not specified, I assume it's $NextHop." -ForegroundColor Yellow
+    }
+
+    Try {
+        If (-not [String]::IsNullOrEmpty($NewPassword)) {
+            $NewPasswd = ConvertFrom-SecureString $NewPassword -ea Stop
+            $BSTR = [System.Runtime.InteropServices.Marshal]::SecureStringToBSTR($NewPassword)
+            $UnsecurePassword = [System.Runtime.InteropServices.Marshal]::PtrToStringAuto($BSTR)
+        }
+        Else {
+            Write-Host "NewPassword cannot be null"
+        }
+    } Catch {
+        throw $_
+    }
      
-    Write-Host "Starting correction of the template $([System.Io.Path]::GetFileName($TemplatePath)): " -NoNewline
+    Write-Host "Starting correction of the template $([System.Io.Path]::GetFileName($SourcePath)): " -NoNewline
     Try {
         $ManualDNSEntry = "$IpAddress,$Hostname"
 
-        $xml = [xml](Get-Content -Path $TemplatePath)
+        $xml = [xml](Get-Content -Path $SourcePath)
         $xmlUserName = $xml.SelectSingleNode("//Attribute[@Name='Users.2#UserName']")
-        If ($PSBoundParameters.Keys -eq 'NewPassword') { $xmlUserName.InnerText = $User }
-        Else { [void]$xmlUserName.ParentNode.RemoveChild($xmlUserName)}
+        If ($PSBoundParameters.Keys -eq 'User') { 
+            $xmlUserName.InnerText = $User
+            $Bilan.psobject.Members.Add([psnoteproperty]::new('User', $User))
+
+        }
+        Else { 
+            [void]$xmlUserName.ParentNode.RemoveChild($xmlUserName)
+            $Bilan.psobject.Members.Add([psnoteproperty]::new('User', '*No Change*'))
+        }
 
         $xmlPassWord = $xml.SelectSingleNode("//Attribute[@Name='Users.2#Password']")
-        If ($PSBoundParameters.Keys -eq 'NewPassword') { $xmlPassWord.InnerText = $NewPassword }
-        Else { [void]$xmlPassWord.ParentNode.RemoveChild($xmlPassWord)}
+        If ($PSBoundParameters.Keys -eq 'NewPassword') {
+            $xmlPassWord.InnerText = $UnsecurePassword
+            $PartialPwd = $UnsecurePassword.Replace($UnsecurePassword.Substring(1,$UnsecurePassword.Length -2), "."*($UnsecurePassword.Length -2))
+            $Bilan.psobject.Members.Add([psnoteproperty]::new('Password', $PartialPwd))
+        }
+        Else { 
+            [void]$xmlPassWord.ParentNode.RemoveChild($xmlPassWord)
+            $Bilan.psobject.Members.Add([psnoteproperty]::new('Password', '*No Change*'))
+        }
 
 
         $xmlManualDNSEntry = $xml.SelectSingleNode("//Attribute[@Name='WebServer.1#ManualDNSEntry']")
         $xmlManualDNSEntry.InnerText = $ManualDNSEntry
+        $Bilan.psobject.Members.Add([psnoteproperty]::new('ManualDNSEntry', $ManualDNSEntry))
 
         $xmlRacName = $xml.SelectSingleNode("//Attribute[@Name='ActiveDirectory.1#RacName']")
         $xmlRacName.InnerText = $Hostname.Split('.')[0]
+        $Bilan.psobject.Members.Add([psnoteproperty]::new('RacName', $Hostname.Split('.')[0]))
+
 
         $xmlRacName = $xml.SelectSingleNode("//Attribute[@Name='NIC.1#DNSRacName']")
         $xmlRacName.InnerText = $Hostname.Split('.')[0]
+        $Bilan.psobject.Members.Add([psnoteproperty]::new('DNSRacName', $Hostname.Split('.')[0]))
+
 
         $xmlAddress = $xml.SelectSingleNode("//Attribute[@Name='IPv4Static.1#Address']")
         $xmlNetMask = $xml.SelectSingleNode("//Attribute[@Name='IPv4Static.1#Netmask']")
@@ -189,48 +230,74 @@ Function Set-RacTemplate {
         $xmlDNS2 = $xml.SelectSingleNode("//Attribute[@Name='IPv4Static.1#DNS2']")
         $xmlDHCPEnable = $xml.SelectSingleNode("//Attribute[@Name='IPv4.1#DHCPEnable']")
 
-        If ($PSBoundParameters.Keys -eq 'StaticIpAddress') { 
-            $xmlAddress.InnerText = $StaticIpAddress
+        If (-not [string]::IsNullOrEmpty($StaticIpAddress)) {
             $xmlDHCPEnable.InnerText = 'Disabled'
+            $Bilan.psobject.Members.Add([psnoteproperty]::new('DHCPEnable', 'Disabled'))
+
+            $xmlAddress.InnerText = $StaticIpAddress
+            $Bilan.psobject.Members.Add([psnoteproperty]::new('StaticIpAddress', $StaticIpAddress))
         }
         Else { 
             [void]$xmlAddress.ParentNode.RemoveChild($xmlAddress)
+            $Bilan.psobject.Members.Add([psnoteproperty]::new('StaticIpAddress', '*No Change*'))
           
           # Si pas d'adresse IP statique demandée alors on ne touche pas au DHCP.
             [void]$xmlDHCPEnable.ParentNode.RemoveChild($xmlDHCPEnable)
+            $Bilan.psobject.Members.Add([psnoteproperty]::new('DHCPEnable', '*No Change*'))
         }
 
-        $Gateway = $PrefixLength | ConvertTo-BinaryFromLength | ConvertTo-IPFromBinary
+        If (-not [string]::IsNullOrEmpty($PrefixLength)) { 
+            $NetMask = $PrefixLength | ConvertTo-BinaryFromLength | ConvertTo-IPFromBinary
+            $xmlNetMask.InnerText = $NetMask
+            $Bilan.psobject.Members.Add([psnoteproperty]::new('NetMask', $NetMask))
+        } 
+        Else { 
+            [void]$xmlNetMask.ParentNode.RemoveChild($xmlNetMask)
+            $Bilan.psobject.Members.Add([psnoteproperty]::new('NetMask', '*No Change*'))
+        }
 
-        If ($PSBoundParameters.Keys -eq 'Gateway') { $xmlNetMask.InnerText = $Gateway }
-        Else { [void]$xmlNetMask.ParentNode.RemoveChild($xmlNetMask)}
 
-        If ($PSBoundParameters.Keys -eq 'NextHop') { $xmlGateway.InnerText = $NextHop }
-        Else { [void]$xmlGateway.ParentNode.RemoveChild($xmlGateway)}
+        If (-not [string]::IsNullOrEmpty($NextHop)) { 
+            $xmlGateway.InnerText = $NextHop
+            $Bilan.psobject.Members.Add([psnoteproperty]::new('Gateway', $NextHop))
+        }
+        Else {
+            [void]$xmlGateway.ParentNode.RemoveChild($xmlGateway)
+            $Bilan.psobject.Members.Add([psnoteproperty]::new('Gateway', '*No Change*'))
+        }
 
-        If ($PSBoundParameters.Keys -eq 'PrimaryDns') { $xmlDNS1.InnerText = $PrimaryDns }
-        Else { [void]$xmlDNS1.ParentNode.RemoveChild($xmlDNS1)}
+        If (-not [string]::IsNullOrEmpty($PrimaryDns)) { 
+            $xmlDNS1.InnerText = $PrimaryDns
+            $Bilan.psobject.Members.Add([psnoteproperty]::new('PrimaryDns', $PrimaryDns))
+        }
+        Else {
+            [void]$xmlDNS1.ParentNode.RemoveChild($xmlDNS1)
+            $Bilan.psobject.Members.Add([psnoteproperty]::new('PrimaryDns', '*No Change*'))
+        }
 
-        If ($PSBoundParameters.Keys -eq 'SecondaryDns') { $xmlDNS2.InnerText = $SecondaryDns }
-        Else { [void]$xmlDNS2.ParentNode.RemoveChild($xmlDNS2)}
+        If (-not [string]::IsNullOrEmpty($SecondaryDns)) {
+            $xmlDNS2.InnerText = $SecondaryDns
+            $Bilan.psobject.Members.Add([psnoteproperty]::new('SecondaryDns', $SecondaryDns))
+        }
+        Else {
+            [void]$xmlDNS2.ParentNode.RemoveChild($xmlDNS2)
+            $Bilan.psobject.Members.Add([psnoteproperty]::new('SecondaryDns', '*No Change*'))
+        }
 
 
         # Boom !
-        $TargetPath = [System.Io.Path]::Combine([System.Io.Path]::GetDirectoryName($TemplatePath),[System.Io.Path]::GetFileNameWithoutExtension($TemplatePath) + "_$($Hostname.Split('.')[0])" + [System.Io.Path]::GetExtension($TemplatePath))
+        $TargetPath = [System.Io.Path]::Combine([System.Io.Path]::GetDirectoryName($SourcePath),[System.Io.Path]::GetFileNameWithoutExtension($SourcePath) + "_$($Hostname.Split('.')[0])" + [System.Io.Path]::GetExtension($SourcePath))
         $xml.Save($TargetPath)
 
-        Write-Host "OK" -ForegroundColor Green
+        $Bilan | Show-menu -Title "Résumé des changements"
 
-        Write-Host "To import the template, please use the command:"
-        Write-Host "`tImport-RacTemplate -TemplatePath $TargetPath -Ip_Idrac $IpAddress -Credential `$Credential -Target ALL -ShutdownType Graceful" -ForegroundColor Cyan
-
+        Return $TargetPath
 
     } Catch {
-        Write-Host "NOK" -ForegroundColor Red
         Throw $_
     }
 
 }
 
-Export-ModuleMember Set-RacTemplate -Alias set-idrac
+Export-ModuleMember Set-RacTemplate
 

@@ -80,7 +80,28 @@
     }
   #endregion Proxy
 
+    $xml = [xml](Get-Content -Path $TemplatePath)
+    $xmlAddress = $xml.SelectSingleNode("//Attribute[@Name='IPv4Static.1#Address']")
+    $xmlNetMask = $xml.SelectSingleNode("//Attribute[@Name='IPv4Static.1#Netmask']")
+    
+  # Testing Ip source to Ip target distance
+    If ($null -ne $xmlAddress) {
+        $SplatParameter = @{
+            ip1 = $xmlAddress.InnerText
+            ip2 = $Ip_Idrac
+        }
+        
+        If ($null -ne $xmlAddress) { $SplatParameter.Mask = $xmlNetMask.InnerText }
+        Else {
+            $Guessing = "If netmask is /24, "
+            $SplatParameter.Mask = '255.255.255.0'
+        }
 
+        If (-not (Test-IpSubnets @SplatParameter)) {
+            Write-Warning -Message ("$Guessing" + "Ip Source and IP Target look not in the same subnet. I give you 20 sec to cancel the operation.")
+            Start-CountDown 20
+        }
+    }
 
     $SCP_file = Get-Content $TemplatePath
     $share_info = @{"ImportBuffer"=[string]$SCP_file;"ShareParameters"=@{"Target"=$Target}}
@@ -116,7 +137,6 @@
         $GetResult = Invoke-RestMethod @WebRequestParameter
         If ($GetResult.TaskStatus -eq 'OK') {
             If ($ShutdownType -eq 'NoReboot') {
-                Write-Host "You have choosen to prevent the reboot, please reboot the server to apply the configuration."
                 Write-Host "You can trigger a restart with command `n`tSet-RacPowerState Ip_Idrac $Ip_Idrac -Credential `$Credential -Action GracefulShutdown"
                 Write-Host "As well, you can follow the Job progress with the command `n`tGet-RacJobStatus -Ip_Idrac $Ip_Idrac -Credential `$Credential -JobId $JobId"
             } Else {

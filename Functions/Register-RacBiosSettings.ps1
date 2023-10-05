@@ -65,18 +65,24 @@ Function Register-RacBiosSettings {
         [Parameter(Mandatory=$true, ParameterSetName='Ip')]
         [Alias("idrac_ip")]
         [IpAddress]$Ip_Idrac,
+
 		[Parameter(ParameterSetName = "Creds")]
         [Parameter(Mandatory=$true, ParameterSetName='Host')]
         [Alias("Server")]
         [string]$Hostname,
+
         [Parameter(Mandatory=$true, ParameterSetName = "Creds")]
         [pscredential]$Credential,
+
         [Parameter(Mandatory=$true, ParameterSetName = "Session")]
         [PSCustomObject]$Session,
+
         [Parameter(Mandatory=$true)]
         [string]$Name,
+
         [Parameter(Mandatory=$true)]
         [string]$Value, 
+
         [Switch]$NoProxy
 	)
 
