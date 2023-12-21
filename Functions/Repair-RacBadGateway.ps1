@@ -3,7 +3,7 @@
     param(
         [Parameter(Mandatory=$true)]
         [ValidatePattern("idrac-\w+\.idrac.boursorama.fr")]
-        [string]$Hostname,
+        [string]$Hostname = 'idrac-puoramut203.idrac.boursorama.fr',
         [Parameter(Mandatory=$true)]
         [pscredential]$Credential,
         [Switch]$NoProxy
@@ -35,7 +35,7 @@
         If ($_.Exception.Message -match "400") {
             $IP = [System.Net.Dns]::Resolve($Hostname).AddressList.IPAddressToString
 
-            Set-RacManagerAttribute -Ip_Idrac $IP -Credential $Credential -Attribute 'WebServer.1.ManualDNSEntry' -Value "$IP,$Hostname" -Verbose
+            Set-RacManagerAttribute -Ip_Idrac $IP -Credential $Credential -Attribute 'WebServer.1.ManualDNSEntry' -Value "$IP,$Hostname" -Verbose -NoProxy:$NoProxy
         } Else {
             throw $_
         }

@@ -75,6 +75,8 @@ Function Get-RacManagerAttribute {
 
     # Built User list to get user's Id
     $GetUri = "https://$Ip_Idrac/redfish/v1/Managers/iDRAC.Embedded.1/Attributes"
+    If ($PSBoundParameters.ContainsKey('Attribute')) { $GetUri += "?`$select=Attributes/$Attribute" }
+
     $WebRequestParameter.Uri = $GetUri
     
     If (! $NoProxy) { Set-myProxyAsDefault -Uri $GetUri | Out-null }
@@ -94,11 +96,11 @@ Function Get-RacManagerAttribute {
         Throw $_
     }
 
-    $Object = $($GetResult.Attributes).psobject.Properties | Where-Object Name -eq $Attribute
+    $Object = $GetResult.Attributes
     If ($null -eq $Object) {
         Write-host "This attribute does not exist"
     } Else {
-        Return  $Object.Value
+        Return  $Object
     }
 }
 

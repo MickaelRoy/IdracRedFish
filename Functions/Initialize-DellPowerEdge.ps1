@@ -95,7 +95,7 @@
     If ($PSCmdlet.ShouldProcess("$IpAddress ($Target)", "Import the template")) {
         # Import du template
         Echo "Import-RacTemplate -TemplatePath $FilePath -Ip_Idrac $IpAddress -Credential $Credential -Target $Target -ShutdownType Graceful "
-        Import-RacTemplate -TemplatePath $FilePath -Ip_Idrac $IpAddress -Credential $Credential -Target $Target -ShutdownType Graceful -NoProxy:$NoProxy -ShutdownType:$ShutdownType
+        Import-RacTemplate -TemplatePath $FilePath -Ip_Idrac $IpAddress -Credential $Credential -Target $Target -NoProxy:$NoProxy -ShutdownType:$ShutdownType
     }
 }
 
