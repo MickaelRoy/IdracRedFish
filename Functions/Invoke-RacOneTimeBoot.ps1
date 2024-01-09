@@ -29,23 +29,27 @@
 
 #>
 Function Invoke-RacOneTimeBoot {
-    [CmdletBinding(DefaultParameterSetName='Host')]
-	param(
-		[Parameter(ParameterSetName = "Creds")]
-        [Parameter(Mandatory=$true, ParameterSetName='Ip')]
+    [CmdletBinding(DefaultParameterSetName = 'Host')]
+    param(
+        [Parameter(ParameterSetName = 'Ip', Mandatory = $true, Position = 0)]
         [Alias("idrac_ip")]
+        [ValidateNotNullOrEmpty()]
         [IpAddress]$Ip_Idrac,
-		[Parameter(ParameterSetName = "Creds")]
-        [Parameter(Mandatory=$true, ParameterSetName='Host')]
+
+        [Parameter(ParameterSetName = 'Host', Mandatory = $true, Position = 0)]
         [Alias("Server")]
+        [ValidateNotNullOrEmpty()]
         [string]$Hostname,
-        [Parameter(Mandatory=$true, ParameterSetName = "Creds")]
+
+        [Parameter(ParameterSetName = 'Ip', Mandatory = $true, Position = 1)]
+        [Parameter(ParameterSetName = 'Host', Mandatory = $true, Position = 1)]
+        [ValidateNotNullOrEmpty()]
         [pscredential]$Credential,
-        [Parameter(Mandatory=$true, ParameterSetName = "Session")]
+
+        [Parameter(ParameterSetName = 'Session', Mandatory = $true, Position = 0)]
+        [ValidateNotNullOrEmpty()]
         [PSCustomObject]$Session,
-        [Parameter(Mandatory=$false)]
-        [ValidateSet("Normal", "PXE", "HDD", "vFDD", "VCD-DVD")]
-        [string]$BootDevice = 'Normal', 
+
         [Switch]$NoProxy
 	)
 
@@ -54,21 +58,22 @@ Function Invoke-RacOneTimeBoot {
     }
 
     Switch ($PsCmdlet.ParameterSetName) {
-        Creds {
-            $WebRequestParameter = @{
-                Headers = @{"Accept"="application/json"}
-                Credential = $Credential
-                Method = 'Post'
-                ContentType = 'application/json'
-            }
-        }
-
         Session {
+            Write-Verbose -Message "Entering Session ParameterSet"
             $WebRequestParameter = @{
                 Headers = $Session.Headers
-                Method = 'Post'
+                Method  = 'Get'
             }
             $Ip_Idrac = $Session.IPAddress
+        }
+        Default {
+            Write-Verbose -Message "Entering Credentials ParameterSet"
+            $WebRequestParameter = @{
+                Headers     = @{"Accept" = "application/json" }
+                Credential  = $Credential
+                Method      = 'Get'
+                ContentType = 'application/json'
+            }
         }
     }
 

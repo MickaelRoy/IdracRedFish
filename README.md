@@ -52,7 +52,9 @@ Submit-RacPendingBiosSettings -Session $Session -Restart
 ```
 
 ## Change Log
-### 2.2.0 New cmdlets
+### 2.3.0 Enhancement of ParameterSets
+
+### 2.2.1 New cmdlets
 Get-RacManagerDellAttribute
 Set-RacManagerDellAttribute
 

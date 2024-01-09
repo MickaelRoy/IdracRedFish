@@ -1,11 +1,10 @@
 ﻿Function Test-RacRedfish {
     [CmdletBinding(DefaultParameterSetName='Host')]
 	param(
-		[Parameter(ParameterSetName = "Creds")]
         [Parameter(Mandatory=$true, ParameterSetName='Ip')]
         [Alias("idrac_ip")]
         [IpAddress]$Ip_Idrac,
-		[Parameter(ParameterSetName = "Creds")]
+
         [Parameter(Mandatory=$true, ParameterSetName='Host')]
         [Alias("Server")]
         [string]$Hostname,
