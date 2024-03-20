@@ -118,21 +118,29 @@ Function Show-Menu {
     $ValueSize = ($InputObject.psobject.Properties.value.ForEach({ $_.Length }) | Sort-Object -Descending -Unique | Select-Object -First 1) + 1
     $Width = $KeySize + $ValueSize + 2
 
-    If ($Title.Length -gt $Width) { $Width = $Title.Length}
-    $Width += ($Width.length % 2)
+    $LineLengh = ($KeySize + $ValueSize + 3)
+    If ($LineLengh -gt $Width) {
+        $Width++
+    }
+
+    If ($Title.Length -gt $Width) { $Width = $Title.Length + 2 }
 
     Write-Host "╒$([string]::new('═', $Width))╕"
     If ($Title) {
         $emptyspaces = ($Width - $Title.Length)
-        $emptyspaces += ($Width.length % 2)
-        $TitleLSpaces = $emptyspaces/2 -1
-        $TitleRSpaces = $Width - ($TitleLSpaces + $Title.Length) -1
-        $TitleRSpaces += ($TitleRSpaces % 2)
+        $TitleLSpaces = [Math]::Floor($emptyspaces/2)
+        $TitleRSpaces = $emptyspaces - $TitleLSpaces  
 
         Write-Host "│$([String]::new(' ', $TitleLSpaces))$Title$([String]::new(' ', $TitleRSpaces))│"
         Write-Host $("├$([string]::new('─', $Width))┤")
     
     }
+
+    If ($LineLengh -lt $Width) { 
+        $MissingSpaces = $Width - $LineLengh 
+        $ValueSize += $MissingSpaces
+    }
+
     Foreach ($Property in $InputObject.psobject.Properties) {
         Write-Host $("│ {0,-$KeySize}: {1, -$ValueSize}│" -f "$($Property.Name)", "$($Property.value)")
     }
