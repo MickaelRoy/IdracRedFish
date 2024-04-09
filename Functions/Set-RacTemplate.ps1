@@ -73,7 +73,7 @@ Date: 28/09/2023
 
 #>
 
-Function New-RacTemplate {
+Function Set-RacTemplate {
     [CmdletBinding(DefaultParameterSetName = 'DHCP')]
     Param(
         [Parameter(mandatory=$true, HelpMessage="Path to template." )]
@@ -183,7 +183,7 @@ Function New-RacTemplate {
      
     Write-Host "Starting correction of the template $([System.Io.Path]::GetFileName($SourcePath)): " -NoNewline
     Try {
-        $ManualDNSEntry = "$IpAddress,$Hostname"
+        $ManualDNSEntry = "$StaticIpAddress,$Hostname"
 
         $xml = [xml](Get-Content -Path $SourcePath)
         $xmlUserName = $xml.SelectSingleNode("//Attribute[@Name='Users.2#UserName']")
@@ -284,12 +284,11 @@ Function New-RacTemplate {
             $Bilan.psobject.Members.Add([psnoteproperty]::new('SecondaryDns', '*No Change*'))
         }
 
-
         # Boom !
         $TargetPath = [System.Io.Path]::Combine([System.Io.Path]::GetDirectoryName($SourcePath),[System.Io.Path]::GetFileNameWithoutExtension($SourcePath) + "_$($Hostname.Split('.')[0])" + [System.Io.Path]::GetExtension($SourcePath))
         $xml.Save($TargetPath)
 
-        $Bilan | Show-menu -Title "Résumé des changements"
+        $Bilan | Show-Menu -Title "Résumé des changements"
 
         Return $TargetPath
 

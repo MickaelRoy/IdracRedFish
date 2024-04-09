@@ -121,6 +121,7 @@
     $full_method_name="EID_674_Manager.ImportSystemConfiguration"
     $PostUri = "https://$Ip_Idrac/redfish/v1/Managers/iDRAC.Embedded.1/Actions/Oem/$full_method_name"
     $WebRequestParameter.Uri = $PostUri
+    $WebRequestParameter.Method = 'Post'
     
     Try {
         $PostResult = Invoke-WebRequest @WebRequestParameter
@@ -130,7 +131,6 @@
     Catch {
         Throw $_
     }
-
 
     $GetUri = "https://$Ip_Idrac$get_job_id_location"
     $WebRequestParameter.Uri = $GetUri
@@ -144,8 +144,10 @@
                 Write-Host "You can trigger a restart with command `n`tSet-RacPowerState Ip_Idrac $Ip_Idrac -Credential `$Credential -Action GracefulShutdown"
                 Write-Host "As well, you can follow the Job progress with the command `n`tGet-RacJobStatus -Ip_Idrac $Ip_Idrac -Credential `$Credential -JobId $JobId"
             } Else {
+                $SuggestedIP =If ($($xmlAddress.InnerText) -ne $Ip_Idrac) { $($xmlAddress.InnerText) }
+                Else { $Ip_Idrac }
                 Write-Host "You have choosen to trigger the reboot. Please wait a while."
-                Write-Host "You can follow the Job progress with the command `n`tGet-RacJobStatus -Ip_Idrac $Ip_Idrac -Credential `$Credential -JobId $JobId"
+                Write-Host "You can follow the Job progress with the command `n`tGet-RacJobStatus $SuggestedIP -Credential `$Credential -JobId $JobId"
             }
         } Else {
             Write-Error -Message "En error occured during the import, please check LifeCycle log for more details"

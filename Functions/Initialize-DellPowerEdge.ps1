@@ -3,10 +3,10 @@
     Param(
         [Parameter(mandatory=$true, HelpMessage="Path to template." )]
         [ValidateScript({
-            if(-Not ($_ | Test-Path) ){
+            If(-Not ($_ | Test-Path) ){
                 throw "File or folder does not exist" 
             }
-            if(-Not ($_ | Test-Path -PathType Leaf) ){
+            If(-Not ($_ | Test-Path -PathType Leaf) ){
                 throw "The Path argument must be a file. Folder paths are not allowed."
             }
                 return $true
@@ -30,6 +30,7 @@
         [SecureString]$NewPassword = (Read-Host -AsSecureString -Prompt "Enter the new password for the privileged account, leave blank to skip this step."),
 
         [Parameter(Mandatory=$false, HelpMessage="Idrac fqdn wether it's not declared in DNS yet.")]
+        [ValidatePattern("idrac-\w+\.idrac.boursorama.fr")]
         [string]$Hostname,
 
         [Parameter(mandatory=$true, ParameterSetName = 'StaticIp', HelpMessage="Static Ip Address pushed with the template.")]
@@ -87,8 +88,8 @@
 
     # Configuration du template
     [void]$PSBoundParameters.Remove("Target")
-    Write-Verbose -Message "New-RacTemplate execution."
-    $FilePath = New-RacTemplate @PSBoundParameters
+    Write-Verbose -Message "Set-RacTemplate execution."
+    $FilePath = Set-RacTemplate @PSBoundParameters
 
     If ($NoProxyFlag) { $PSBoundParameters.Add('NoProxy', $true) }
 
