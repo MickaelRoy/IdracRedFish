@@ -38,6 +38,10 @@ PS C:\idrac-refdish-powershell-module> Ipmo .\IdracRedfish
 * Update-RacFirmware
 * Get-RacManagerDellAttribute
 * Set-RacManagerDellAttribute
+* Initialize-DellPowerEdge.ps1
+* Set-RacTemplate.ps1
+* Import-RacTemplate.ps1
+
 
 ## Use Case examples
 ```powershell
@@ -52,11 +56,16 @@ Submit-RacPendingBiosSettings -Session $Session -Restart
 ```
 
 ## Change Log
+### 2.3.0 Bug Fixes and little enhancements
+
 ### 2.3.0 Enhancement of ParameterSets
+* Initialize-DellPowerEdge.ps1
+* Set-RacTemplate.ps1
+* Import-RacTemplate.ps1
 
 ### 2.2.1 New cmdlets
-Get-RacManagerDellAttribute
-Set-RacManagerDellAttribute
+* Get-RacManagerDellAttribute
+* Set-RacManagerDellAttribute
 
 ### 2.1.0 Proxy Update and Hostname parameter
 All cmdlets can detect and use the proxy user.

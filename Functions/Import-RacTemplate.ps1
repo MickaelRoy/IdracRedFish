@@ -140,14 +140,18 @@
     Try {
         $GetResult = Invoke-RestMethod @WebRequestParameter
         If ($GetResult.TaskStatus -eq 'OK') {
+            $SuggestedIP =If ($($xmlAddress.InnerText) -ne $Ip_Idrac) { $($xmlAddress.InnerText) }
+            Else { $Ip_Idrac }
+
             If ($ShutdownType -eq 'NoReboot') {
-                Write-Host "You can trigger a restart with command `n`tSet-RacPowerState Ip_Idrac $Ip_Idrac -Credential `$Credential -Action GracefulShutdown"
-                Write-Host "As well, you can follow the Job progress with the command `n`tGet-RacJobStatus -Ip_Idrac $Ip_Idrac -Credential `$Credential -JobId $JobId"
+                Write-Host "You can trigger a restart with command:"
+                Write-Host "`tSet-RacPowerState Ip_Idrac $Ip_Idrac -Credential `$Credential -Action GracefulShutdown" -ForegroundColor Magenta
+                Write-Host "As well, you can follow the Job progress with the command:"
+                Write-Host "`tGet-RacJobStatus -Ip_Idrac $Ip_Idrac -Credential `$Credential -JobId $JobId" -ForegroundColor Magenta
             } Else {
-                $SuggestedIP =If ($($xmlAddress.InnerText) -ne $Ip_Idrac) { $($xmlAddress.InnerText) }
-                Else { $Ip_Idrac }
                 Write-Host "You have choosen to trigger the reboot. Please wait a while."
-                Write-Host "You can follow the Job progress with the command `n`tGet-RacJobStatus $SuggestedIP -Credential `$Credential -JobId $JobId"
+                Write-Host "You can follow the Job progress with the command:"
+                Write-Host "`tGet-RacJobStatus $SuggestedIP -Credential `$Credential -JobId $JobId" -ForegroundColor Magenta
             }
         } Else {
             Write-Error -Message "En error occured during the import, please check LifeCycle log for more details"
