@@ -56,7 +56,9 @@ Submit-RacPendingBiosSettings -Session $Session -Restart
 ```
 
 ## Change Log
-### 2.3.0 Bug Fixes and little enhancements
+### 2.4.1 Bug Fixes and little enhancements
+
+### 2.4.0 Bug Fixes and little enhancements
 
 ### 2.3.0 Enhancement of ParameterSets
 * Initialize-DellPowerEdge.ps1
