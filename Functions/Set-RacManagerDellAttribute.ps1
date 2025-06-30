@@ -58,22 +58,22 @@ Function Set-RacManagerDellAttribute {
         [Parameter(ParameterSetName = 'Host', Mandatory = $true, Position = 0)]
         [Alias("Server")]
         [ValidateNotNullOrEmpty()]
-        [string]$Hostname,
+        [string]$Hostname = 'idrac-panutaflax104.idrac.boursorama.fr',
 
         [Parameter(ParameterSetName = 'Ip', Mandatory = $true, Position = 1)]
         [Parameter(ParameterSetName = 'Host', Mandatory = $true, Position = 1)]
         [ValidateNotNullOrEmpty()]
-        [pscredential]$Credential,
+        [pscredential]$Credential = (Get-Credential),
 
         [Parameter(ParameterSetName = 'Session', Mandatory = $true, Position = 0)]
         [ValidateNotNullOrEmpty()]
         [PSCustomObject]$Session,
         
         [Parameter(Mandatory = $true)]
-        [string]$Attribute,
+        [string]$Attribute = 'ServerPwr.1.RapidOnPrimaryPSU',
 
         [Parameter(Mandatory = $true)]
-        [string]$Value,
+        [string]$Value = 2,
 
         [Switch]$NoProxy
     )
@@ -87,7 +87,7 @@ Function Set-RacManagerDellAttribute {
             Write-Verbose -Message "Entering Session ParameterSet"
             $WebRequestParameter = @{
                 Headers = $Session.Headers
-                Method  = 'Get'
+                Method  = 'Patch'
             }
             $Ip_Idrac = $Session.IPAddress
         }
@@ -96,7 +96,7 @@ Function Set-RacManagerDellAttribute {
             $WebRequestParameter = @{
                 Headers     = @{"Accept" = "application/json" }
                 Credential  = $Credential
-                Method      = 'Get'
+                Method      = 'Patch'
                 ContentType = 'application/json'
             }
         }

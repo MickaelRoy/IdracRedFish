@@ -59,7 +59,7 @@ Function Reset-RacIdrac {
             Write-Verbose -Message "Entering Session ParameterSet"
             $WebRequestParameter = @{
                 Headers = $Session.Headers
-                Method  = 'Get'
+                Method  = 'Post'
             }
             $Ip_Idrac = $Session.IPAddress
         }
@@ -68,7 +68,7 @@ Function Reset-RacIdrac {
             $WebRequestParameter = @{
                 Headers     = @{"Accept" = "application/json" }
                 Credential  = $Credential
-                Method      = 'Get'
+                Method      = 'Post'
                 ContentType = 'application/json'
             }
         }
@@ -89,6 +89,7 @@ Function Reset-RacIdrac {
     $WebRequestParameter.Body = $JsonBody
 
     $PostUri = "https://$Ip_Idrac/redfish/v1/Managers/iDRAC.Embedded.1/Actions/Manager.Reset"
+
     $WebRequestParameter.Uri = $PostUri
 
 

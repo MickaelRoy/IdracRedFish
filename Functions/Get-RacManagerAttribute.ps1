@@ -58,35 +58,31 @@ Function Get-RacManagerAttribute {
 	)
 
     If ($PSBoundParameters['Hostname']) {
-        $Ip_Idrac = [system.net.dns]::Resolve($Hostname).AddressList.IPAddressToString
+        $Ip_Idrac = [System.Net.Dns]::Resolve($Hostname).AddressList.IPAddressToString
     }
+    Write-Verbose "Adresse IP solicitée: $Ip_Idrac"
 
     Switch ($PsCmdlet.ParameterSetName) {
-        Creds {
-            $WebRequestParameter = @{
-                Headers = @{"Accept"="application/json"}
-                Credential = $Credential
-                Method = 'Get'
-                ContentType = 'application/json'
-            }
-        }
-
         Session {
+            Write-Verbose -Message "Entering Session ParameterSet"
             $WebRequestParameter = @{
                 Headers = $Session.Headers
-                Method = 'Get'
+                Method  = 'Get'
             }
             $Ip_Idrac = $Session.IPAddress
         }
+        Default {
+            Write-Verbose -Message "Entering Credentials ParameterSet"
+            $WebRequestParameter = @{
+                Headers     = @{"Accept" = "application/json" }
+                Credential  = $Credential
+                Method      = 'Get'
+                ContentType = 'application/json'
+            }
+        }
     }
 
-    # Built User list to get user's Id
-    $GetUri = "https://$Ip_Idrac/redfish/v1/Managers/iDRAC.Embedded.1/Attributes"
-    If ($PSBoundParameters.ContainsKey('Attribute')) { $GetUri += "?`$select=Attributes/$Attribute" }
-
-    $WebRequestParameter.Uri = $GetUri
-    
-    If (! $NoProxy) { Set-myProxyAsDefault -Uri $GetUri | Out-null }
+    If (! $NoProxy) { Set-myProxyAsDefault -Uri "Https://$Ip_Idrac" | Out-null }
     Else {
         Write-Verbose "No proxy requested"
         $Proxy = [System.Net.WebProxy]::new()
@@ -96,7 +92,15 @@ Function Get-RacManagerAttribute {
         If ($PSVersionTable.PSVersion.Major -gt 5) { $WebRequestParameter.SkipCertificateCheck = $true }
     }
 
+    # Built User list to get user's Id
+    $GetUri = "https://$Ip_Idrac/redfish/v1/Managers/iDRAC.Embedded.1/Attributes"
+    Write-Verbose "Uri de base : $GetUri"
 
+    If ($PSBoundParameters.ContainsKey('Attribute')) { $GetUri += "?`$select=Attributes/$Attribute" }
+    Write-Verbose "Uri définitive : $GetUri"
+
+    $WebRequestParameter.Uri = $GetUri
+    
     Try {
         $GetResult = Invoke-RestMethod @WebRequestParameter
     } Catch {
